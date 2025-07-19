@@ -11,6 +11,7 @@ pipeline {
     stage('Install & Test Services') {
       steps {
         script {
+          sh 'node -v && npm -v && which npm'
           def services = ['user-service', 'order-service', 'product-service']
           services.each { service ->
             dir(service) {
