@@ -7,11 +7,6 @@ pipeline {
   }
 
   stages {
-    stage('Checkout Code') {
-      steps {
-        git 'https://github.com/aditya3011ai/node-microservice-pipeline-main.git'
-      }
-    }
 
     stage('Install & Test Services') {
       steps {
