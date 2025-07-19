@@ -2,13 +2,18 @@ pipeline {
   agent any
 
   environment {
-    SONAR_TOKEN = credentials('sonar-token')
-    DOCKERHUB = credentials('dockerhub')
+    SONAR_TOKEN = credentials('sonartoken')
+    DOCKER_CREDENTIALS = credentials('dockerhub')
   }
 
   stages {
+    stage('Checkout Code') {
+      steps {
+        git 'https://github.com/aditya3011ai/node-microservice-pipeline-main.git'
+      }
+    }
 
-    stage('Test Services') {
+    stage('Install & Test Services') {
       steps {
         script {
           def services = ['user-service', 'order-service', 'product-service']
@@ -31,6 +36,7 @@ pipeline {
               sh 'npm run test -- --coverage'
               sh """
                 sonar-scanner \
+                -Dsonar.projectBaseDir=. \
                 -Dsonar.login=$SONAR_TOKEN
               """
             }
@@ -39,12 +45,12 @@ pipeline {
       }
     }
 
-    stage('Trivy Scan') {
+    stage('Trivy Scan & Build Docker Images') {
       steps {
         script {
           def services = ['user-service', 'order-service', 'product-service']
           services.each { service ->
-            def image = "mydockerhub/${service}:latest"
+            def image = "aditya3011/${service}:latest"
             sh "docker build -t ${image} ${service}"
             sh "trivy image --severity HIGH,CRITICAL ${image}"
           }
@@ -52,15 +58,13 @@ pipeline {
       }
     }
 
-    stage('Build & Push Docker Images') {
+    stage('Push Docker Images') {
       steps {
         script {
-          echo "DOCKERHUB_USR: $DOCKERHUB_USR"
-          sh "echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin"
+          sh "echo $DOCKER_CREDENTIALS_PSW | docker login -u $DOCKER_CREDENTIALS_USR --password-stdin"
           def services = ['user-service', 'order-service', 'product-service']
           services.each { service ->
-            def image = "mydockerhub/${service}:latest"
-            sh "docker build -t ${image} ${service}"
+            def image = "aditya3011/${service}:latest"
             sh "docker push ${image}"
           }
         }
@@ -69,13 +73,7 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       steps {
-        script {
-          def services = ['user-service', 'order-service', 'product-service']
-          services.each { service ->
-            sh "kubectl apply -f k8s/${service}-deployment.yaml"
-            sh "kubectl apply -f k8s/${service}-service.yaml"
-          }
-        }
+        sh 'kubectl apply -f k8s/'
       }
     }
   }
